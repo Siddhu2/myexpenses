@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stock Portfolio</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #1e293b;
+      border-bottom: 1px solid #334155;
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    header h1 { font-size: 1.4rem; font-weight: 700; color: #f1f5f9; }
+    header span { font-size: 0.8rem; color: #64748b; }
+
+    .refresh-btn {
+      background: #22c55e;
+      color: #fff;
+      border: none;
+      padding: 0.45rem 1.1rem;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.15s;
+    }
+    .refresh-btn:hover { background: #16a34a; }
+    .refresh-btn:disabled { background: #334155; cursor: default; }
+
+    main { padding: 1.5rem 2rem; max-width: 1400px; margin: 0 auto; }
+
+    /* Hero current value banner */
+    .hero {
+      background: linear-gradient(135deg, #1e3a5f 0%, #1e293b 100%);
+      border: 1px solid #2d4a6e;
+      border-radius: 12px;
+      padding: 1.5rem 2rem;
+      margin-bottom: 1.2rem;
+      display: flex;
+      align-items: center;
+      gap: 3rem;
+      flex-wrap: wrap;
+    }
+    .hero-item { display: flex; flex-direction: column; gap: 0.25rem; }
+    .hero-label { font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.06em; }
+    .hero-value { font-size: 2rem; font-weight: 800; color: #f1f5f9; }
+    .hero-value.green { color: #22c55e; }
+    .hero-value.red   { color: #ef4444; }
+    .hero-divider { width: 1px; height: 50px; background: #334155; }
+
+    /* Summary cards */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 1.1rem 1.3rem;
+    }
+    .card-label { font-size: 0.72rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; }
+    .card-value { font-size: 1.3rem; font-weight: 700; color: #f1f5f9; margin-top: 0.25rem; }
+    .card-value.green { color: #22c55e; }
+    .card-value.red   { color: #ef4444; }
+
+    /* Charts */
+    .charts {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    @media (max-width: 800px) { .charts { grid-template-columns: 1fr; } }
+
+    .chart-box {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 1.2rem;
+    }
+    .chart-box h3 { font-size: 0.82rem; color: #94a3b8; margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .chart-box canvas { max-height: 280px; }
+
+    /* Table */
+    .table-wrap {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .table-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 1.2rem;
+      border-bottom: 1px solid #334155;
+    }
+    .table-header h3 { font-size: 0.82rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; }
+
+    input[type=text] {
+      background: #0f172a;
+      border: 1px solid #334155;
+      color: #e2e8f0;
+      padding: 0.4rem 0.8rem;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      width: 200px;
+    }
+    input[type=text]:focus { outline: none; border-color: #22c55e; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th {
+      background: #0f172a;
+      color: #64748b;
+      font-weight: 600;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 0.75rem 0.9rem;
+      text-align: left;
+    }
+    th.right, td.right { text-align: right; }
+    td { padding: 0.7rem 0.9rem; border-top: 1px solid #1e293b; color: #cbd5e1; }
+    tr:hover td { background: #263348; }
+
+    .symbol-badge {
+      display: inline-block;
+      background: #1d4ed8;
+      color: #bfdbfe;
+      padding: 0.2rem 0.55rem;
+      border-radius: 5px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+    }
+
+    .pnl-pos { color: #22c55e; font-weight: 600; }
+    .pnl-neg { color: #ef4444; font-weight: 600; }
+    .na      { color: #475569; }
+
+    .empty { text-align: center; color: #475569; padding: 3rem; font-size: 0.9rem; }
+
+    /* Toast */
+    #toast {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      padding: 0.75rem 1.2rem;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #fff;
+      display: none;
+      z-index: 999;
+      max-width: 320px;
+    }
+    #toast.show { display: block; }
+    #toast.green { background: #16a34a; }
+    #toast.blue  { background: #2563eb; }
+    #toast.red   { background: #dc2626; }
+
+    #lastUpdated { font-size: 0.75rem; color: #475569; margin-bottom: 1rem; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Stock Portfolio</h1>
+    <span>Groww Holdings — DEMAT</span>
+  </div>
+  <button class="refresh-btn" onclick="doRefresh()">Refresh</button>
+</header>
+
+<main>
+  <p id="lastUpdated">Loading...</p>
+
+  <!-- Hero: current portfolio value -->
+  <div class="hero">
+    <div class="hero-item">
+      <div class="hero-label">Total Current Value</div>
+      <div class="hero-value green" id="heroCurrent">—</div>
+    </div>
+    <div class="hero-divider"></div>
+    <div class="hero-item">
+      <div class="hero-label">Total Invested</div>
+      <div class="hero-value" id="heroInvested">—</div>
+    </div>
+    <div class="hero-divider"></div>
+    <div class="hero-item">
+      <div class="hero-label">Overall P&amp;L</div>
+      <div class="hero-value" id="heroPnl">—</div>
+    </div>
+    <div class="hero-divider"></div>
+    <div class="hero-item">
+      <div class="hero-label">Overall Return</div>
+      <div class="hero-value" id="heroPct">—</div>
+    </div>
+  </div>
+
+  <!-- Summary cards -->
+  <div class="cards">
+    <div class="card">
+      <div class="card-label">Holdings</div>
+      <div class="card-value" id="holdingsCount">—</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Best Performer</div>
+      <div class="card-value green" id="bestStock">—</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Worst Performer</div>
+      <div class="card-value red" id="worstStock">—</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Avg Position</div>
+      <div class="card-value" id="avgPosition">—</div>
+    </div>
+  </div>
+
+  <div class="charts">
+    <div class="chart-box">
+      <h3>Portfolio Allocation (Current Value)</h3>
+      <canvas id="allocationChart"></canvas>
+    </div>
+    <div class="chart-box">
+      <h3>Top 10 by Current Value</h3>
+      <canvas id="topChart"></canvas>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <div class="table-header">
+      <h3>All Holdings</h3>
+      <input type="text" id="searchInput" placeholder="Search symbol..." oninput="renderTable()" />
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Symbol</th>
+          <th class="right">Qty</th>
+          <th class="right">Avg Price</th>
+          <th class="right">Invested</th>
+          <th class="right">CMP</th>
+          <th class="right">Current Value</th>
+          <th class="right">P&amp;L</th>
+          <th class="right">Return %</th>
+          <th>ISIN</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+</main>
+
+<div id="toast"></div>
+
+<script>
+  let allHoldings = [];
+  let allocationChart, topChart;
+
+  const INR  = v => '₹' + Number(v).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  const NUM  = v => Number(v).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  const SIGN = v => (v >= 0 ? '+' : '') + INR(v);
+
+  const COLORS = [
+    '#3b82f6','#22c55e','#f59e0b','#ef4444','#a855f7',
+    '#06b6d4','#f97316','#ec4899','#84cc16','#14b8a6',
+    '#8b5cf6','#fb923c','#4ade80','#f43f5e','#38bdf8',
+  ];
+
+  async function load() {
+    const res   = await fetch('/api/stocks');
+    allHoldings = await res.json();
+    render();
+  }
+
+  function render() {
+    if (!allHoldings.length) {
+      document.getElementById('lastUpdated').textContent = 'No data — click Refresh to fetch holdings.';
+      document.getElementById('tableBody').innerHTML = '<tr><td colspan="9" class="empty">No holdings found. Click Refresh.</td></tr>';
+      return;
+    }
+
+    const withPrice = allHoldings.filter(h => h.current_value !== '' && h.current_value != null);
+    const totalInvested = allHoldings.reduce((s, h) => s + h.invested_value, 0);
+    const totalCurrent  = withPrice.reduce((s, h) => s + h.current_value, 0);
+    const totalPnl      = totalCurrent - totalInvested;
+    const totalPct      = totalInvested ? (totalPnl / totalInvested) * 100 : 0;
+
+    // Hero
+    document.getElementById('heroCurrent').textContent  = INR(totalCurrent);
+    document.getElementById('heroInvested').textContent = INR(totalInvested);
+
+    const pnlEl = document.getElementById('heroPnl');
+    pnlEl.textContent = (totalPnl >= 0 ? '+' : '') + INR(totalPnl);
+    pnlEl.className = 'hero-value ' + (totalPnl >= 0 ? 'green' : 'red');
+
+    const pctEl = document.getElementById('heroPct');
+    pctEl.textContent = (totalPct >= 0 ? '+' : '') + totalPct.toFixed(2) + '%';
+    pctEl.className = 'hero-value ' + (totalPct >= 0 ? 'green' : 'red');
+
+    // Cards
+    document.getElementById('holdingsCount').textContent = allHoldings.length;
+    document.getElementById('avgPosition').textContent   = INR(totalInvested / allHoldings.length);
+
+    const ranked = withPrice.slice().sort((a, b) => b.pnl_pct - a.pnl_pct);
+    if (ranked.length) {
+      const best  = ranked[0];
+      const worst = ranked[ranked.length - 1];
+      document.getElementById('bestStock').textContent  = `${best.symbol} (${best.pnl_pct >= 0 ? '+' : ''}${best.pnl_pct.toFixed(1)}%)`;
+      document.getElementById('worstStock').textContent = `${worst.symbol} (${worst.pnl_pct >= 0 ? '+' : ''}${worst.pnl_pct.toFixed(1)}%)`;
+    }
+
+    document.getElementById('lastUpdated').textContent = 'Last updated: ' + (allHoldings[0]?.last_updated || '—');
+
+    renderAllocationChart(withPrice, totalCurrent);
+    renderTopChart(withPrice);
+    renderTable();
+  }
+
+  function renderAllocationChart(withPrice, total) {
+    const sorted = withPrice.slice().sort((a, b) => b.current_value - a.current_value);
+    const top    = sorted.slice(0, 14);
+    const others = sorted.slice(14).reduce((s, h) => s + h.current_value, 0);
+    const labels = top.map(h => h.symbol);
+    const values = top.map(h => h.current_value);
+    if (others > 0) { labels.push('Others'); values.push(others); }
+
+    const ctx = document.getElementById('allocationChart').getContext('2d');
+    if (allocationChart) allocationChart.destroy();
+    allocationChart = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels,
+        datasets: [{ data: values, backgroundColor: COLORS, borderColor: '#1e293b', borderWidth: 2 }]
+      },
+      options: {
+        plugins: {
+          legend: { position: 'right', labels: { color: '#94a3b8', font: { size: 11 }, boxWidth: 12, padding: 10 } },
+          tooltip: {
+            callbacks: {
+              label: ctx => ' ' + ctx.label + ': ' + INR(ctx.parsed) + ' (' + (ctx.parsed / total * 100).toFixed(1) + '%)'
+            }
+          }
+        }
+      }
+    });
+  }
+
+  function renderTopChart(withPrice) {
+    const top10 = withPrice.slice().sort((a, b) => b.current_value - a.current_value).slice(0, 10);
+    const ctx   = document.getElementById('topChart').getContext('2d');
+    if (topChart) topChart.destroy();
+    topChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: top10.map(h => h.symbol),
+        datasets: [{
+          label: 'Current Value (₹)',
+          data: top10.map(h => h.current_value),
+          backgroundColor: COLORS.slice(0, top10.length),
+          borderRadius: 4,
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: '#64748b', callback: v => '₹' + (v/1000).toFixed(0) + 'k' }, grid: { color: '#1e293b' } },
+          y: { ticks: { color: '#94a3b8' }, grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  function renderTable() {
+    const q    = document.getElementById('searchInput').value.toLowerCase();
+    const rows = allHoldings.filter(h => !q || h.symbol.toLowerCase().includes(q) || h.isin.toLowerCase().includes(q));
+    const tbody = document.getElementById('tableBody');
+
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="9" class="empty">No matches found.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = rows.map(h => {
+      const hasCur   = h.current_price !== '' && h.current_price != null;
+      const pnlClass = !hasCur ? '' : (h.pnl >= 0 ? 'pnl-pos' : 'pnl-neg');
+      const pnlStr   = !hasCur ? '<span class="na">—</span>' : `<span class="${pnlClass}">${h.pnl >= 0 ? '+' : ''}${INR(h.pnl)}</span>`;
+      const pctStr   = !hasCur ? '<span class="na">—</span>' : `<span class="${pnlClass}">${h.pnl_pct >= 0 ? '+' : ''}${h.pnl_pct.toFixed(2)}%</span>`;
+      const cmpStr   = hasCur ? INR(h.current_price) : '<span class="na">—</span>';
+      const cvStr    = hasCur ? INR(h.current_value)  : '<span class="na">—</span>';
+
+      return `<tr>
+        <td><span class="symbol-badge">${h.symbol}</span></td>
+        <td class="right">${NUM(h.quantity)}</td>
+        <td class="right">${INR(h.average_price)}</td>
+        <td class="right">${INR(h.invested_value)}</td>
+        <td class="right">${cmpStr}</td>
+        <td class="right">${cvStr}</td>
+        <td class="right">${pnlStr}</td>
+        <td class="right">${pctStr}</td>
+        <td style="color:#64748b;font-size:0.78rem">${h.isin}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  async function doRefresh() {
+    const btn = document.querySelector('.refresh-btn');
+    btn.disabled = true;
+    btn.textContent = 'Refreshing...';
+    try {
+      const res  = await fetch('/api/refresh');
+      const data = await res.json();
+      if (data.ok) {
+        await load();
+        showToast(`Fetched ${data.holdings} holdings with live prices`, 'green');
+      } else {
+        showToast(data.error || 'Refresh failed', 'red');
+      }
+    } catch (e) {
+      showToast('Network error', 'red');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Refresh';
+    }
+  }
+
+  function showToast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'show ' + type;
+    setTimeout(() => { t.className = ''; }, 3500);
+  }
+
+  load();
+</script>
+</body>
+</html>

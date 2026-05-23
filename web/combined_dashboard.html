@@ -1,0 +1,1578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Finance Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:      #0f172a;
+    --surface: #1e293b;
+    --border:  #334155;
+    --text:    #f1f5f9;
+    --muted:   #94a3b8;
+    --blue:    #3b82f6;
+    --green:   #22c55e;
+    --amber:   #f59e0b;
+    --red:     #ef4444;
+    --purple:  #a855f7;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ── Tab Bar ── */
+  .tab-bar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .tab-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    padding: 14px 18px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color .15s, border-color .15s;
+    margin-bottom: -1px;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--text); border-bottom-color: var(--blue); }
+
+  /* ── Tab Sections ── */
+  .tab-content { display: none; padding: 24px; }
+  .tab-content.active { display: block; }
+
+  /* ── Shared: Header ── */
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .section-header h1 { font-size: 1.4rem; font-weight: 700; }
+  .section-header p  { color: var(--muted); font-size: 0.85rem; margin-top: 2px; }
+
+  .btn {
+    border: none;
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: opacity .2s;
+  }
+  .btn:hover   { opacity: .85; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-blue  { background: var(--blue); }
+  .btn-green { background: var(--green); }
+
+  .btn.spinning .spin-icon { display: inline-block; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .month-select {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    outline: none;
+  }
+  .month-select:focus { border-color: var(--blue); }
+
+  /* ── Toast ── */
+  #toast {
+    position: fixed;
+    bottom: 28px;
+    right: 28px;
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-size: 0.88rem;
+    font-weight: 500;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .3s;
+    max-width: 320px;
+    z-index: 999;
+  }
+  #toast.show    { opacity: 1; }
+  #toast.success { background: #064e3b; color: #6ee7b7; border: 1px solid #065f46; }
+  #toast.error   { background: #450a0a; color: #fca5a5; border: 1px solid #7f1d1d; }
+  #toast.info    { background: #1e3a5f; color: #93c5fd; border: 1px solid #1e40af; }
+
+  /* ── Cards ── */
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .card-label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  .card-value { font-size: 1.5rem; font-weight: 700; margin-top: 6px; }
+  .card-sub   { font-size: 0.78rem; color: var(--muted); margin-top: 4px; }
+  .card-value.blue   { color: var(--blue); }
+  .card-value.green  { color: var(--green); }
+  .card-value.amber  { color: var(--amber); }
+  .card-value.red    { color: var(--red); }
+
+  /* ── Chart Grid ── */
+  .charts-row { display: grid; gap: 16px; margin-bottom: 16px; }
+  .charts-row.two   { grid-template-columns: 2fr 1fr; }
+  .charts-row.three { grid-template-columns: 1fr 1fr 1fr; }
+  .charts-row.half  { grid-template-columns: 1fr 1fr; }
+
+  .chart-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .chart-box h3 {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    margin-bottom: 16px;
+  }
+  .chart-box canvas { max-height: 280px; }
+
+  /* ── Table ── */
+  .table-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-top: 16px;
+  }
+  .table-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .table-header h3 {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+  }
+  .table-controls { display: flex; gap: 10px; flex-wrap: wrap; }
+  .table-controls input,
+  .table-controls select {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 7px 12px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    outline: none;
+  }
+  .table-controls input:focus,
+  .table-controls select:focus { border-color: var(--blue); }
+
+  .tbl-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  th {
+    text-align: left;
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    background: var(--bg);
+  }
+  th.right, td.right { text-align: right; }
+  td {
+    padding: 10px 12px;
+    border-top: 1px solid #1e293b;
+    color: #cbd5e1;
+    vertical-align: middle;
+  }
+  tr:hover td { background: rgba(255,255,255,0.03); }
+
+  /* ── Badges ── */
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .badge-hdfc-cc  { background: rgba(59,130,246,0.15);  color: #93c5fd; }
+  .badge-hdfc-upi { background: rgba(16,185,129,0.15);  color: #6ee7b7; }
+  .badge-hdfc-atm { background: rgba(168,85,247,0.15);  color: #d8b4fe; }
+  .badge-hdfc-dc  { background: rgba(236,72,153,0.15);  color: #f9a8d4; }
+  .badge-sbi-cc   { background: rgba(245,158,11,0.15);  color: #fcd34d; }
+  .badge-manual   { background: rgba(34,197,94,0.15);   color: #86efac; }
+  .badge-gold-18k { background: rgba(59,130,246,0.15);  color: #93c5fd; }
+  .badge-gold-22k { background: rgba(245,158,11,0.15);  color: #fcd34d; }
+  .badge-gold-24k { background: rgba(34,197,94,0.15);   color: #86efac; }
+
+  /* ── Income Form ── */
+  .income-form {
+    display: none;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    grid-template-columns: 1fr 1fr 1fr 1fr auto;
+    gap: 10px;
+    align-items: end;
+  }
+  .income-form.open { display: grid; }
+  .income-form label { font-size: 0.75rem; color: var(--muted); display: block; margin-bottom: 4px; }
+  .income-form input,
+  .income-form select {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 7px 10px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    outline: none;
+  }
+  .income-form input:focus,
+  .income-form select:focus { border-color: var(--green); }
+  .btn-danger { background: #7f1d1d; color: #fca5a5; border: 1px solid #991b1b; padding: 3px 8px; border-radius: 5px; cursor: pointer; font-size: 0.75rem; }
+  .btn-danger:hover { background: #991b1b; }
+
+  @media (max-width: 768px) {
+    .income-form { grid-template-columns: 1fr 1fr; }
+  }
+  .symbol-badge {
+    display: inline-block;
+    background: rgba(29,78,216,0.3);
+    color: #bfdbfe;
+    padding: 2px 8px;
+    border-radius: 5px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+  }
+
+  .debit   { color: var(--red); }
+  .credit  { color: var(--green); }
+  .pnl-pos { color: var(--green); font-weight: 600; }
+  .pnl-neg { color: var(--red);   font-weight: 600; }
+  .na      { color: #475569; }
+
+  .no-data {
+    text-align: center;
+    color: var(--muted);
+    padding: 40px;
+    font-size: 0.9rem;
+  }
+
+  /* ── Pagination ── */
+  .pagination {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    font-size: 0.83rem;
+    color: var(--muted);
+    border-top: 1px solid var(--border);
+  }
+  .pagination button {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 5px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.83rem;
+  }
+  .pagination button:disabled { opacity: 0.4; cursor: default; }
+  .pagination button:hover:not(:disabled) { border-color: var(--blue); }
+
+  /* ── Stocks Hero ── */
+  .hero {
+    background: linear-gradient(135deg, #1e3a5f 0%, #1e293b 100%);
+    border: 1px solid #2d4a6e;
+    border-radius: 12px;
+    padding: 1.5rem 2rem;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 3rem;
+    flex-wrap: wrap;
+  }
+  .hero-item { display: flex; flex-direction: column; gap: 0.25rem; }
+  .hero-label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  .hero-value { font-size: 1.8rem; font-weight: 800; color: var(--text); }
+  .hero-value.green { color: var(--green); }
+  .hero-value.red   { color: var(--red); }
+  .hero-divider { width: 1px; height: 50px; background: var(--border); }
+
+  #stkLastUpdated { font-size: 0.75rem; color: #475569; margin-bottom: 16px; }
+  .gold-rate-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .gold-rate {
+    background: linear-gradient(135deg, rgba(180,83,9,0.18), rgba(30,41,59,1));
+    border: 1px solid rgba(245,158,11,0.25);
+    border-radius: 12px;
+    padding: 18px 20px;
+  }
+  .gold-rate .label {
+    font-size: 0.75rem;
+    color: #fcd34d;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .gold-rate .value {
+    font-size: 1.35rem;
+    font-weight: 800;
+    margin-top: 6px;
+  }
+  #gldLastUpdated { font-size: 0.75rem; color: #64748b; margin-bottom: 16px; }
+
+  @media (max-width: 768px) {
+    .charts-row.two, .charts-row.half { grid-template-columns: 1fr; }
+    .tab-content { padding: 12px; }
+    .hero { gap: 1.5rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Tab Bar -->
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="switchTab('expenses')">💰 Expenses</button>
+  <button class="tab-btn" onclick="switchTab('stocks')">📈 Portfolio</button>
+  <button class="tab-btn" onclick="switchTab('gold')">🪙 Gold</button>
+</div>
+
+<!-- ════════════════════════════════════════════
+     EXPENSES TAB
+════════════════════════════════════════════ -->
+<div id="tab-expenses" class="tab-content active">
+
+  <div class="section-header">
+    <div>
+      <h1>Expense Dashboard</h1>
+      <p id="expSubtitle">Loading...</p>
+    </div>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <select class="month-select" id="expMonthSelect">
+        <option value="all">All Time</option>
+      </select>
+      <button class="btn btn-blue" id="expRefreshBtn" onclick="expDoRefresh()">
+        <span class="spin-icon">&#x21bb;</span> Refresh
+      </button>
+    </div>
+  </div>
+
+  <div class="cards">
+    <div class="card">
+      <div class="card-label">Total Spent</div>
+      <div class="card-value red" id="expCardTotal">—</div>
+      <div class="card-sub" id="expCardTotalSub">this period</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Transactions</div>
+      <div class="card-value blue" id="expCardCount">—</div>
+      <div class="card-sub">debits recorded</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Daily Average</div>
+      <div class="card-value amber" id="expCardAvg">—</div>
+      <div class="card-sub">per active day</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Top Merchant</div>
+      <div class="card-value green" id="expCardTopM" style="font-size:1rem; padding-top:4px;">—</div>
+      <div class="card-sub" id="expCardTopMSub"></div>
+    </div>
+  </div>
+
+  <!-- Income / Savings summary cards -->
+  <div class="cards">
+    <div class="card">
+      <div class="card-label">Total Income</div>
+      <div class="card-value green" id="expCardIncome">—</div>
+      <div class="card-sub">this period</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Net Savings</div>
+      <div class="card-value" id="expCardSavings">—</div>
+      <div class="card-sub" id="expCardSavingsSub">income − expenses</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Savings Rate</div>
+      <div class="card-value" id="expCardSavingsRate">—</div>
+      <div class="card-sub">of income</div>
+    </div>
+  </div>
+
+  <div class="charts-row two">
+    <div class="chart-box">
+      <h3>Daily Spending</h3>
+      <canvas id="expChartDaily" height="100"></canvas>
+    </div>
+    <div class="chart-box">
+      <h3>By Source</h3>
+      <canvas id="expChartSource" height="100"></canvas>
+    </div>
+  </div>
+
+  <div class="charts-row two">
+    <div class="chart-box">
+      <h3>Top 10 Merchants</h3>
+      <canvas id="expChartMerchants" height="200"></canvas>
+    </div>
+    <div class="chart-box">
+      <h3>Monthly Trend</h3>
+      <canvas id="expChartMonthly" height="120"></canvas>
+    </div>
+  </div>
+
+  <div class="charts-row two">
+    <div class="chart-box">
+      <h3>Spending by Category</h3>
+      <canvas id="expChartCategory" height="200"></canvas>
+    </div>
+    <div class="chart-box">
+      <h3>Income vs Expenses (Monthly)</h3>
+      <canvas id="expChartIncomeVsExp" height="200"></canvas>
+    </div>
+  </div>
+
+  <div class="table-box">
+    <div class="table-header">
+      <h3>Transactions</h3>
+      <div class="table-controls">
+        <input type="text" id="expSearch" placeholder="Search merchant..." />
+        <select id="expSourceFilter">
+          <option value="">All Sources</option>
+          <option value="HDFC-CC">HDFC-CC</option>
+          <option value="HDFC-UPI">HDFC-UPI</option>
+          <option value="HDFC-ATM">HDFC-ATM</option>
+          <option value="HDFC-DC">HDFC-DC</option>
+          <option value="SBI-CC">SBI-CC</option>
+        </select>
+        <select id="expCategoryFilter">
+          <option value="">All Categories</option>
+        </select>
+      </div>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Source</th>
+            <th>Merchant</th>
+            <th>Category</th>
+            <th>Account</th>
+            <th class="right">Amount</th>
+          </tr>
+        </thead>
+        <tbody id="expTxBody"></tbody>
+      </table>
+      <div id="expNoData" class="no-data" style="display:none">No transactions found.</div>
+    </div>
+    <div class="pagination">
+      <span id="expPageInfo"></span>
+      <button id="expBtnPrev">← Prev</button>
+      <button id="expBtnNext">Next →</button>
+    </div>
+  </div>
+  <!-- Income Section -->
+  <div class="table-box" style="margin-top:16px;">
+    <div class="table-header">
+      <h3>Income</h3>
+      <button class="btn btn-green" onclick="expToggleIncomeForm()">+ Add Income</button>
+    </div>
+    <div class="income-form" id="expIncomeForm">
+      <div>
+        <label>Date</label>
+        <input type="date" id="incDate" />
+      </div>
+      <div>
+        <label>Amount (₹)</label>
+        <input type="number" id="incAmount" placeholder="0" min="0" step="0.01" />
+      </div>
+      <div>
+        <label>Category</label>
+        <select id="incCategory">
+          <option>Salary</option>
+          <option>Freelance</option>
+          <option>Rental</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div>
+        <label>Note</label>
+        <input type="text" id="incNote" placeholder="e.g. April salary" />
+      </div>
+      <button class="btn btn-green" onclick="expAddIncome()">Save</button>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Category</th>
+            <th>Note</th>
+            <th class="right">Amount</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="expIncomeBody"></tbody>
+      </table>
+      <div id="expIncomeNoData" class="no-data" style="display:none">No income recorded yet. Click "+ Add Income" to add one.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     STOCKS TAB
+════════════════════════════════════════════ -->
+<div id="tab-stocks" class="tab-content">
+
+  <div class="section-header">
+    <div>
+      <h1>Stock Portfolio</h1>
+      <p>Groww Holdings — DEMAT</p>
+    </div>
+    <button class="btn btn-green" id="stkRefreshBtn" onclick="stkDoRefresh()">
+      <span class="spin-icon">&#x21bb;</span> Refresh
+    </button>
+  </div>
+
+  <p id="stkLastUpdated">Loading...</p>
+
+  <div class="hero">
+    <div class="hero-item">
+      <div class="hero-label">Total Current Value</div>
+      <div class="hero-value green" id="stkHeroCurrent">—</div>
+    </div>
+    <div class="hero-divider"></div>
+    <div class="hero-item">
+      <div class="hero-label">Total Invested</div>
+      <div class="hero-value" id="stkHeroInvested">—</div>
+    </div>
+    <div class="hero-divider"></div>
+    <div class="hero-item">
+      <div class="hero-label">Overall P&amp;L</div>
+      <div class="hero-value" id="stkHeroPnl">—</div>
+    </div>
+    <div class="hero-divider"></div>
+    <div class="hero-item">
+      <div class="hero-label">Overall Return</div>
+      <div class="hero-value" id="stkHeroPct">—</div>
+    </div>
+  </div>
+
+  <div class="cards">
+    <div class="card">
+      <div class="card-label">Holdings</div>
+      <div class="card-value" id="stkHoldingsCount">—</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Best Performer</div>
+      <div class="card-value green" id="stkBest">—</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Worst Performer</div>
+      <div class="card-value red" id="stkWorst">—</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Avg Position</div>
+      <div class="card-value" id="stkAvgPos">—</div>
+    </div>
+  </div>
+
+  <div class="charts-row half">
+    <div class="chart-box">
+      <h3>Portfolio Allocation (Current Value)</h3>
+      <canvas id="stkChartAlloc"></canvas>
+    </div>
+    <div class="chart-box">
+      <h3>Top 10 by Current Value</h3>
+      <canvas id="stkChartTop"></canvas>
+    </div>
+  </div>
+
+  <div class="table-box">
+    <div class="table-header">
+      <h3>All Holdings</h3>
+      <div class="table-controls">
+        <input type="text" id="stkSearch" placeholder="Search symbol..." oninput="stkRenderTable()" />
+      </div>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Symbol</th>
+            <th class="right">Qty</th>
+            <th class="right">Avg Price</th>
+            <th class="right">Invested</th>
+            <th class="right">CMP</th>
+            <th class="right">Current Value</th>
+            <th class="right">P&amp;L</th>
+            <th class="right">Return %</th>
+            <th>ISIN</th>
+          </tr>
+        </thead>
+        <tbody id="stkTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════
+     GOLD TAB
+════════════════════════════════════════════ -->
+<div id="tab-gold" class="tab-content">
+
+  <div class="section-header">
+    <div>
+      <h1>Gold Articles</h1>
+      <p>Physical gold tracking by purity and weight</p>
+    </div>
+    <button class="btn btn-green" id="gldRefreshBtn" onclick="gldRefreshRates()">
+      <span class="spin-icon">&#x21bb;</span> Refresh Rates
+    </button>
+  </div>
+
+  <p id="gldLastUpdated">Loading...</p>
+
+  <div class="cards">
+    <div class="card">
+      <div class="card-label">Articles</div>
+      <div class="card-value" id="gldCardCount">—</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Total Weight</div>
+      <div class="card-value amber" id="gldCardWeight">—</div>
+      <div class="card-sub">grams</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Live Value</div>
+      <div class="card-value green" id="gldCardValue">—</div>
+      <div class="card-sub">based on latest rates</div>
+    </div>
+  </div>
+
+  <div class="gold-rate-strip">
+    <div class="gold-rate">
+      <div class="label">18K Rate / Gram</div>
+      <div class="value" id="gldRate18">—</div>
+    </div>
+    <div class="gold-rate">
+      <div class="label">22K Rate / Gram</div>
+      <div class="value" id="gldRate22">—</div>
+    </div>
+    <div class="gold-rate">
+      <div class="label">24K Rate / Gram</div>
+      <div class="value" id="gldRate24">—</div>
+    </div>
+  </div>
+
+  <div class="charts-row two">
+    <div class="chart-box">
+      <h3>Weight by Purity</h3>
+      <canvas id="gldChartKarat"></canvas>
+    </div>
+    <div class="chart-box">
+      <h3>Top Articles by Value</h3>
+      <canvas id="gldChartValue"></canvas>
+    </div>
+  </div>
+
+  <div class="table-box">
+    <div class="table-header">
+      <h3>Add Gold Article</h3>
+    </div>
+    <div class="income-form open" id="gldForm" style="display:grid;">
+      <div>
+        <label>Article</label>
+        <input type="text" id="gldName" placeholder="e.g. Necklace" />
+      </div>
+      <div>
+        <label>Purity</label>
+        <select id="gldKarat">
+          <option value="18K">18K</option>
+          <option value="22K" selected>22K</option>
+          <option value="24K">24K</option>
+        </select>
+      </div>
+      <div>
+        <label>Weight (grams)</label>
+        <input type="number" id="gldGrams" placeholder="0" min="0" step="0.01" />
+      </div>
+      <div>
+        <label>Notes</label>
+        <input type="text" id="gldNotes" placeholder="Optional note" />
+      </div>
+      <button class="btn btn-green" onclick="gldAddArticle()">Save</button>
+    </div>
+  </div>
+
+  <div class="table-box">
+    <div class="table-header">
+      <h3>All Articles</h3>
+      <div class="table-controls">
+        <input type="text" id="gldSearch" placeholder="Search article..." oninput="gldRenderTable()" />
+        <select id="gldKaratFilter" onchange="gldRenderTable()">
+          <option value="">All Purities</option>
+          <option value="18K">18K</option>
+          <option value="22K">22K</option>
+          <option value="24K">24K</option>
+        </select>
+      </div>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Article</th>
+            <th>Purity</th>
+            <th class="right">Weight</th>
+            <th class="right">Rate / Gram</th>
+            <th class="right">Live Value</th>
+            <th>Notes</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="gldTableBody"></tbody>
+      </table>
+      <div id="gldNoData" class="no-data" style="display:none">No gold articles yet. Add one above.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Shared toast -->
+<div id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════
+// SHARED UTILITIES
+// ════════════════════════════════════════════
+const INR  = v => '₹' + Number(v).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+const NUM  = v => Number(v).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+let _toastTimer;
+function showToast(msg, type = 'info', duration = 4000) {
+  clearTimeout(_toastTimer);
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `show ${type}`;
+  if (duration > 0) _toastTimer = setTimeout(() => { t.className = ''; }, duration);
+}
+
+// ── Tab switching ──────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active'));
+  document.querySelector(`.tab-btn[onclick="switchTab('${name}')"]`).classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'stocks' && !stkLoaded) stkLoad();
+  if (name === 'gold' && !gldLoaded) gldLoad();
+}
+
+// ════════════════════════════════════════════
+// EXPENSES TAB
+// ════════════════════════════════════════════
+const EXP_SOURCE_COLORS = {
+  'HDFC-CC':  '#3b82f6',
+  'HDFC-UPI': '#10b981',
+  'HDFC-ATM': '#a855f7',
+  'HDFC-DC':  '#ec4899',
+  'SBI-CC':   '#f59e0b',
+};
+const EXP_PAGE_SIZE = 20;
+
+let expAllData = [];
+let expFiltered = [];
+let expPage = 0;
+let expCharts = {};
+const EXP_EXCLUDED_CATEGORY = 'Credit card bill';
+
+function shortNum(n) {
+  if (n >= 100000) return (n/100000).toFixed(1) + 'L';
+  if (n >= 1000)   return (n/1000).toFixed(0) + 'K';
+  return n;
+}
+function fmtMonth(m) {
+  const [y, mo] = m.split('-');
+  return new Date(+y, +mo-1).toLocaleDateString('en-IN', {month:'short', year:'numeric'});
+}
+function expIsTrackedExpense(e) {
+  return e.type === 'debit' && e.category !== EXP_EXCLUDED_CATEGORY;
+}
+function groupSum(arr, key) {
+  return arr.reduce((acc, e) => {
+    const k = typeof key === 'function' ? key(e) : (e[key] || '');
+    acc[k] = (acc[k] || 0) + e.amount;
+    return acc;
+  }, {});
+}
+function expDestroyChart(id) {
+  if (expCharts[id]) { expCharts[id].destroy(); delete expCharts[id]; }
+}
+
+(async () => {
+  try {
+    expAllData = await fetch('/api/expenses').then(r => r.json());
+  } catch (e) {
+    document.getElementById('expSubtitle').textContent = 'Error loading data.';
+    return;
+  }
+  expRebuildMonthSelector();
+  document.getElementById('expMonthSelect').addEventListener('change', expRender);
+  document.getElementById('expSearch').addEventListener('input', () => { expPage = 0; expRenderTable(); });
+  document.getElementById('expSourceFilter').addEventListener('change', () => { expPage = 0; expRenderTable(); });
+  document.getElementById('expCategoryFilter').addEventListener('change', () => { expPage = 0; expRenderTable(); });
+  document.getElementById('expBtnPrev').addEventListener('click', () => { expPage--; expRenderTable(); });
+  document.getElementById('expBtnNext').addEventListener('click', () => { expPage++; expRenderTable(); });
+  expRender();
+})();
+
+function expRebuildMonthSelector() {
+  const sel = document.getElementById('expMonthSelect');
+  const current = sel.value;
+  while (sel.options.length > 1) sel.remove(1);
+  const months = [...new Set(expAllData.map(e => e.date.slice(0,7)))].sort().reverse();
+  months.forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m; opt.textContent = fmtMonth(m);
+    sel.appendChild(opt);
+  });
+  sel.value = [...sel.options].some(o => o.value === current) ? current : (months[0] || 'all');
+
+  const catSel = document.getElementById('expCategoryFilter');
+  const currentCat = catSel.value;
+  while (catSel.options.length > 1) catSel.remove(1);
+  const cats = [...new Set(expAllData.map(e => e.category).filter(c => c && c !== EXP_EXCLUDED_CATEGORY))].sort();
+  cats.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c; opt.textContent = c;
+    catSel.appendChild(opt);
+  });
+  catSel.value = [...catSel.options].some(o => o.value === currentCat) ? currentCat : '';
+}
+
+function expRender() {
+  const month = document.getElementById('expMonthSelect').value;
+  expFiltered = month === 'all' ? expAllData : expAllData.filter(e => e.date.startsWith(month));
+  const debits  = expFiltered.filter(expIsTrackedExpense);
+  const credits = expFiltered.filter(e => e.type === 'credit');
+
+  document.getElementById('expSubtitle').textContent =
+    month === 'all' ? `All ${debits.length} tracked expenses` : `${fmtMonth(month)} · ${debits.length} tracked expenses`;
+
+  const total = debits.reduce((s, e) => s + e.amount, 0);
+  document.getElementById('expCardTotal').textContent = INR(total);
+  document.getElementById('expCardCount').textContent = debits.length;
+  const days = [...new Set(debits.map(e => e.date))].length || 1;
+  document.getElementById('expCardAvg').textContent = INR(total / days);
+
+  const merchantTotals = groupSum(debits, 'merchant');
+  const topM = Object.entries(merchantTotals).sort((a,b) => b[1]-a[1])[0];
+  document.getElementById('expCardTopM').textContent = topM ? topM[0] : '—';
+  document.getElementById('expCardTopMSub').textContent = topM ? INR(topM[1]) : '';
+
+  // Income / savings cards
+  const totalIncome = credits.reduce((s, e) => s + e.amount, 0);
+  const netSavings  = totalIncome - total;
+  const savingsRate = totalIncome > 0 ? (netSavings / totalIncome * 100) : null;
+  document.getElementById('expCardIncome').textContent = INR(totalIncome);
+  const savEl = document.getElementById('expCardSavings');
+  savEl.textContent = INR(Math.abs(netSavings));
+  savEl.className   = 'card-value ' + (netSavings >= 0 ? 'green' : 'red');
+  document.getElementById('expCardSavingsSub').textContent = netSavings >= 0 ? 'surplus' : 'deficit';
+  const rateEl = document.getElementById('expCardSavingsRate');
+  rateEl.textContent = savingsRate !== null ? savingsRate.toFixed(1) + '%' : '—';
+  rateEl.className   = 'card-value ' + (savingsRate !== null && savingsRate >= 0 ? 'green' : 'red');
+
+  expRenderCharts(debits);
+  expRenderIncomeVsExpChart();
+  expPage = 0;
+  expRenderTable();
+  expRenderIncomeTable();
+}
+
+function expRenderCharts(debits) {
+  // Daily
+  const byDateSource = {};
+  debits.forEach(e => {
+    if (!byDateSource[e.date]) byDateSource[e.date] = {};
+    byDateSource[e.date][e.source] = (byDateSource[e.date][e.source] || 0) + e.amount;
+  });
+  const dates = Object.keys(byDateSource).sort();
+  const sources = Object.keys(EXP_SOURCE_COLORS);
+  expDestroyChart('daily');
+  expCharts.daily = new Chart(document.getElementById('expChartDaily'), {
+    type: 'bar',
+    data: {
+      labels: dates.map(d => d.slice(5)),
+      datasets: sources.map(src => ({
+        label: src,
+        data: dates.map(d => byDateSource[d][src] || 0),
+        backgroundColor: EXP_SOURCE_COLORS[src],
+        borderRadius: 3, borderSkipped: false,
+      })),
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: '#94a3b8', boxWidth: 12, font: {size:11} } } },
+      scales: {
+        x: { stacked: true, ticks: { color: '#94a3b8', font:{size:10} }, grid: { color: '#1e293b' } },
+        y: { stacked: true, ticks: { color: '#94a3b8', font:{size:10}, callback: v => '₹'+shortNum(v) }, grid: { color: '#334155' } },
+      },
+    },
+  });
+
+  // Source donut
+  const bySource = groupSum(debits, 'source');
+  const srcLabels = Object.keys(bySource);
+  expDestroyChart('source');
+  expCharts.source = new Chart(document.getElementById('expChartSource'), {
+    type: 'doughnut',
+    data: {
+      labels: srcLabels,
+      datasets: [{ data: srcLabels.map(l => bySource[l]), backgroundColor: srcLabels.map(l => EXP_SOURCE_COLORS[l] || '#64748b'), borderColor: '#0f172a', borderWidth: 3 }],
+    },
+    options: {
+      responsive: true, cutout: '65%',
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#94a3b8', boxWidth: 12, font:{size:11}, padding:12 } },
+        tooltip: { callbacks: { label: ctx => ` ${INR(ctx.raw)}` } },
+      },
+    },
+  });
+
+  // Top merchants
+  const sorted = Object.entries(groupSum(debits, 'merchant')).sort((a,b) => b[1]-a[1]).slice(0,10);
+  expDestroyChart('merchants');
+  expCharts.merchants = new Chart(document.getElementById('expChartMerchants'), {
+    type: 'bar',
+    data: {
+      labels: sorted.map(([k]) => k || '(unknown)'),
+      datasets: [{ data: sorted.map(([,v]) => v), backgroundColor: sorted.map((_,i) => `hsl(${210+i*12},70%,${55-i*2}%)`), borderRadius: 4 }],
+    },
+    options: {
+      indexAxis: 'y', responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#94a3b8', font:{size:10}, callback: v => '₹'+shortNum(v) }, grid: { color: '#334155' } },
+        y: { ticks: { color: '#94a3b8', font:{size:11} }, grid: { display: false } },
+      },
+    },
+  });
+
+  // Monthly trend (always all data)
+  const allDebits = expAllData.filter(expIsTrackedExpense);
+  const byMonth = groupSum(allDebits, e => e.date.slice(0,7));
+  const months = Object.keys(byMonth).sort();
+  expDestroyChart('monthly');
+  expCharts.monthly = new Chart(document.getElementById('expChartMonthly'), {
+    type: 'line',
+    data: {
+      labels: months.map(fmtMonth),
+      datasets: [{ data: months.map(m => byMonth[m]), borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.1)', fill: true, tension: 0.3, pointBackgroundColor: '#3b82f6', pointRadius: 4 }],
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#94a3b8', font:{size:10} }, grid: { color: '#334155' } },
+        y: { ticks: { color: '#94a3b8', font:{size:10}, callback: v => '₹'+shortNum(v) }, grid: { color: '#334155' } },
+      },
+    },
+  });
+
+  // Category pie
+  const byCat = groupSum(debits, 'category');
+  const catSorted = Object.entries(byCat).sort((a,b) => b[1]-a[1]);
+  const palette = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#f97316','#84cc16','#ec4899','#14b8a6','#a78bfa','#fb923c','#4ade80','#f472b6','#38bdf8'];
+  expDestroyChart('category');
+  expCharts.category = new Chart(document.getElementById('expChartCategory'), {
+    type: 'pie',
+    data: {
+      labels: catSorted.map(([k]) => k || 'Uncategorized'),
+      datasets: [{ data: catSorted.map(([,v]) => v), backgroundColor: catSorted.map((_,i) => palette[i%palette.length]), borderColor: '#0f172a', borderWidth: 2 }],
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'right', labels: { color: '#94a3b8', boxWidth: 14, font:{size:11}, padding:10 } },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${INR(ctx.raw)}` } },
+      },
+    },
+  });
+}
+
+function expRenderTable() {
+  const search    = document.getElementById('expSearch').value.toLowerCase();
+  const srcFilter = document.getElementById('expSourceFilter').value;
+  const catFilter = document.getElementById('expCategoryFilter').value;
+  let rows = expFiltered.filter(e => {
+    if (!expIsTrackedExpense(e)) return false;
+    return (!search || (e.merchant||'').toLowerCase().includes(search))
+        && (!srcFilter || e.source === srcFilter)
+        && (!catFilter || e.category === catFilter);
+  }).sort((a,b) => b.date.localeCompare(a.date) || b.amount - a.amount);
+
+  const total = rows.length;
+  const start = expPage * EXP_PAGE_SIZE;
+  const pageRows = rows.slice(start, start + EXP_PAGE_SIZE);
+
+  const tbody = document.getElementById('expTxBody');
+  const noData = document.getElementById('expNoData');
+
+  if (!pageRows.length) {
+    tbody.innerHTML = '';
+    noData.style.display = 'block';
+  } else {
+    noData.style.display = 'none';
+    tbody.innerHTML = pageRows.map(e => `
+      <tr>
+        <td style="white-space:nowrap">${e.date}</td>
+        <td><span class="badge badge-${e.source.toLowerCase()}">${e.source}</span></td>
+        <td>${e.merchant || '<span style="color:#64748b">—</span>'}</td>
+        <td><span style="color:#94a3b8;font-size:0.82rem">${e.category || '—'}</span></td>
+        <td style="color:#64748b">${e.account ? '···' + e.account : '—'}</td>
+        <td class="right ${e.type}">${e.type === 'debit' ? '-' : '+'}${INR(e.amount)}</td>
+      </tr>
+    `).join('');
+  }
+
+  const totalPages = Math.ceil(total / EXP_PAGE_SIZE);
+  document.getElementById('expPageInfo').textContent =
+    total ? `${start+1}–${Math.min(start+EXP_PAGE_SIZE, total)} of ${total}` : '';
+  document.getElementById('expBtnPrev').disabled = expPage === 0;
+  document.getElementById('expBtnNext').disabled = expPage >= totalPages - 1;
+}
+
+function expRenderIncomeVsExpChart() {
+  const allMonths = [...new Set(expAllData.map(e => e.date.slice(0,7)))].sort();
+  const incByMonth = {}, expByMonth = {};
+  expAllData.forEach(e => {
+    const m = e.date.slice(0,7);
+    if (e.type === 'credit') incByMonth[m] = (incByMonth[m] || 0) + e.amount;
+    else if (expIsTrackedExpense(e)) expByMonth[m] = (expByMonth[m] || 0) + e.amount;
+  });
+  expDestroyChart('incomeVsExp');
+  expCharts.incomeVsExp = new Chart(document.getElementById('expChartIncomeVsExp'), {
+    type: 'bar',
+    data: {
+      labels: allMonths.map(fmtMonth),
+      datasets: [
+        { label: 'Income',   data: allMonths.map(m => incByMonth[m] || 0), backgroundColor: '#22c55e', borderRadius: 4 },
+        { label: 'Expenses', data: allMonths.map(m => expByMonth[m] || 0), backgroundColor: '#ef4444', borderRadius: 4 },
+      ],
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: '#94a3b8', boxWidth: 12, font:{size:11} } } },
+      scales: {
+        x: { ticks: { color: '#94a3b8', font:{size:10} }, grid: { color: '#334155' } },
+        y: { ticks: { color: '#94a3b8', font:{size:10}, callback: v => '₹'+shortNum(v) }, grid: { color: '#334155' } },
+      },
+    },
+  });
+}
+
+function expRenderIncomeTable() {
+  const month = document.getElementById('expMonthSelect').value;
+  const rows  = expAllData
+    .filter(e => e.type === 'credit' && (month === 'all' || e.date.startsWith(month)))
+    .sort((a, b) => b.date.localeCompare(a.date));
+  const tbody  = document.getElementById('expIncomeBody');
+  const noData = document.getElementById('expIncomeNoData');
+  if (!rows.length) {
+    tbody.innerHTML = '';
+    noData.style.display = 'block';
+  } else {
+    noData.style.display = 'none';
+    tbody.innerHTML = rows.map(e => {
+      const isManual = e.email_id && e.email_id.startsWith('manual-');
+      const delBtn   = isManual
+        ? `<button class="btn-danger" onclick="expDeleteIncome('${e.email_id}')">Delete</button>`
+        : '';
+      return `<tr>
+        <td style="white-space:nowrap">${e.date}</td>
+        <td><span style="color:#94a3b8;font-size:0.82rem">${e.account || '—'}</span></td>
+        <td>${e.merchant || '<span style="color:#64748b">—</span>'}</td>
+        <td class="right credit">+${INR(e.amount)}</td>
+        <td class="right">${delBtn}</td>
+      </tr>`;
+    }).join('');
+  }
+}
+
+function expToggleIncomeForm() {
+  const form = document.getElementById('expIncomeForm');
+  form.classList.toggle('open');
+  if (form.classList.contains('open')) {
+    document.getElementById('incDate').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('incAmount').value = '';
+    document.getElementById('incNote').value = '';
+  }
+}
+
+async function expAddIncome() {
+  const date     = document.getElementById('incDate').value;
+  const amount   = parseFloat(document.getElementById('incAmount').value);
+  const category = document.getElementById('incCategory').value;
+  const note     = document.getElementById('incNote').value.trim();
+  if (!date || !amount || amount <= 0) {
+    showToast('Date and a valid amount are required.', 'error');
+    return;
+  }
+  try {
+    const res  = await fetch('/api/income/add', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date, amount, category, note }),
+    });
+    const data = await res.json();
+    if (!data.ok) { showToast('Error: ' + data.error, 'error'); return; }
+    showToast('Income entry saved.', 'success');
+    expAllData = await fetch('/api/expenses').then(r => r.json());
+    expRebuildMonthSelector();
+    expRender();
+    expToggleIncomeForm();
+  } catch (e) {
+    showToast('Could not reach server.', 'error');
+  }
+}
+
+async function expDeleteIncome(emailId) {
+  if (!confirm('Delete this income entry?')) return;
+  try {
+    const res  = await fetch('/api/income/' + encodeURIComponent(emailId), { method: 'DELETE' });
+    const data = await res.json();
+    if (!data.ok) { showToast('Error: ' + data.error, 'error'); return; }
+    showToast('Income entry deleted.', 'success');
+    expAllData = await fetch('/api/expenses').then(r => r.json());
+    expRebuildMonthSelector();
+    expRender();
+  } catch (e) {
+    showToast('Could not reach server.', 'error');
+  }
+}
+
+async function expDoRefresh() {
+  const btn = document.getElementById('expRefreshBtn');
+  btn.disabled = true;
+  btn.classList.add('spinning');
+  showToast('Fetching latest transactions from Gmail…', 'info', 0);
+  try {
+    const res  = await fetch('/api/refresh');
+    const data = await res.json();
+    if (!data.ok) {
+      showToast('Error: ' + data.error, 'error');
+    } else if (data.new === 0) {
+      showToast(`Already up to date — no new transactions (checked ${data.label}).`, 'info');
+    } else {
+      showToast(`✓ ${data.new} new transaction${data.new > 1 ? 's' : ''} added (${data.label}).`, 'success');
+      expAllData = await fetch('/api/expenses').then(r => r.json());
+      expRebuildMonthSelector();
+      expRender();
+    }
+  } catch (e) {
+    showToast('Could not reach server.', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('spinning');
+  }
+}
+
+// ════════════════════════════════════════════
+// STOCKS TAB
+// ════════════════════════════════════════════
+let stkHoldings = [];
+let stkLoaded = false;
+let stkAllocChart, stkTopChart;
+
+const STK_COLORS = [
+  '#3b82f6','#22c55e','#f59e0b','#ef4444','#a855f7',
+  '#06b6d4','#f97316','#ec4899','#84cc16','#14b8a6',
+  '#8b5cf6','#fb923c','#4ade80','#f43f5e','#38bdf8',
+];
+
+async function stkLoad() {
+  stkLoaded = true;
+  try {
+    const res = await fetch('/api/stocks');
+    stkHoldings = await res.json();
+    stkRender();
+  } catch (e) {
+    document.getElementById('stkLastUpdated').textContent = 'Error loading holdings.';
+  }
+}
+
+function stkRender() {
+  if (!stkHoldings.length) {
+    document.getElementById('stkLastUpdated').textContent = 'No data — click Refresh to fetch holdings.';
+    document.getElementById('stkTableBody').innerHTML = '<tr><td colspan="9" class="no-data">No holdings found. Click Refresh.</td></tr>';
+    return;
+  }
+
+  const withPrice    = stkHoldings.filter(h => h.current_value !== '' && h.current_value != null);
+  const totalInvested = stkHoldings.reduce((s, h) => s + h.invested_value, 0);
+  const totalCurrent  = withPrice.reduce((s, h) => s + h.current_value, 0);
+  const totalPnl      = totalCurrent - totalInvested;
+  const totalPct      = totalInvested ? (totalPnl / totalInvested) * 100 : 0;
+
+  document.getElementById('stkHeroCurrent').textContent  = INR(totalCurrent);
+  document.getElementById('stkHeroInvested').textContent = INR(totalInvested);
+
+  const pnlEl = document.getElementById('stkHeroPnl');
+  pnlEl.textContent = (totalPnl >= 0 ? '+' : '') + INR(totalPnl);
+  pnlEl.className = 'hero-value ' + (totalPnl >= 0 ? 'green' : 'red');
+
+  const pctEl = document.getElementById('stkHeroPct');
+  pctEl.textContent = (totalPct >= 0 ? '+' : '') + totalPct.toFixed(2) + '%';
+  pctEl.className = 'hero-value ' + (totalPct >= 0 ? 'green' : 'red');
+
+  document.getElementById('stkHoldingsCount').textContent = stkHoldings.length;
+  document.getElementById('stkAvgPos').textContent = INR(totalInvested / stkHoldings.length);
+
+  const ranked = withPrice.slice().sort((a, b) => b.pnl_pct - a.pnl_pct);
+  if (ranked.length) {
+    const best  = ranked[0];
+    const worst = ranked[ranked.length - 1];
+    document.getElementById('stkBest').textContent  = `${best.symbol} (${best.pnl_pct >= 0 ? '+' : ''}${best.pnl_pct.toFixed(1)}%)`;
+    document.getElementById('stkWorst').textContent = `${worst.symbol} (${worst.pnl_pct >= 0 ? '+' : ''}${worst.pnl_pct.toFixed(1)}%)`;
+  }
+
+  document.getElementById('stkLastUpdated').textContent = 'Last updated: ' + (stkHoldings[0]?.last_updated || '—');
+
+  // Allocation donut
+  const sortedByVal = withPrice.slice().sort((a, b) => b.current_value - a.current_value);
+  const top14 = sortedByVal.slice(0, 14);
+  const others = sortedByVal.slice(14).reduce((s, h) => s + h.current_value, 0);
+  const allocLabels = top14.map(h => h.symbol);
+  const allocValues = top14.map(h => h.current_value);
+  if (others > 0) { allocLabels.push('Others'); allocValues.push(others); }
+  if (stkAllocChart) stkAllocChart.destroy();
+  stkAllocChart = new Chart(document.getElementById('stkChartAlloc'), {
+    type: 'doughnut',
+    data: { labels: allocLabels, datasets: [{ data: allocValues, backgroundColor: STK_COLORS, borderColor: '#1e293b', borderWidth: 2 }] },
+    options: {
+      plugins: {
+        legend: { position: 'right', labels: { color: '#94a3b8', font:{size:11}, boxWidth:12, padding:10 } },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${INR(ctx.parsed)} (${(ctx.parsed/totalCurrent*100).toFixed(1)}%)` } },
+      },
+    },
+  });
+
+  // Top 10 bar
+  const top10 = sortedByVal.slice(0, 10);
+  if (stkTopChart) stkTopChart.destroy();
+  stkTopChart = new Chart(document.getElementById('stkChartTop'), {
+    type: 'bar',
+    data: {
+      labels: top10.map(h => h.symbol),
+      datasets: [{ label: 'Current Value (₹)', data: top10.map(h => h.current_value), backgroundColor: STK_COLORS.slice(0, top10.length), borderRadius: 4 }],
+    },
+    options: {
+      indexAxis: 'y',
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#64748b', callback: v => '₹'+(v/1000).toFixed(0)+'k' }, grid: { color: '#1e293b' } },
+        y: { ticks: { color: '#94a3b8' }, grid: { display: false } },
+      },
+    },
+  });
+
+  stkRenderTable();
+}
+
+function stkRenderTable() {
+  const q = (document.getElementById('stkSearch').value || '').toLowerCase();
+  const rows = stkHoldings.filter(h => !q || h.symbol.toLowerCase().includes(q) || h.isin.toLowerCase().includes(q));
+  const tbody = document.getElementById('stkTableBody');
+
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="9" class="no-data">No matches found.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = rows.map(h => {
+    const hasCur = h.current_price !== '' && h.current_price != null;
+    const cls    = !hasCur ? '' : (h.pnl >= 0 ? 'pnl-pos' : 'pnl-neg');
+    const pnlStr = !hasCur ? '<span class="na">—</span>' : `<span class="${cls}">${h.pnl >= 0 ? '+' : ''}${INR(h.pnl)}</span>`;
+    const pctStr = !hasCur ? '<span class="na">—</span>' : `<span class="${cls}">${h.pnl_pct >= 0 ? '+' : ''}${h.pnl_pct.toFixed(2)}%</span>`;
+    return `<tr>
+      <td><span class="symbol-badge">${h.symbol}</span></td>
+      <td class="right">${NUM(h.quantity)}</td>
+      <td class="right">${INR(h.average_price)}</td>
+      <td class="right">${INR(h.invested_value)}</td>
+      <td class="right">${hasCur ? INR(h.current_price) : '<span class="na">—</span>'}</td>
+      <td class="right">${hasCur ? INR(h.current_value)  : '<span class="na">—</span>'}</td>
+      <td class="right">${pnlStr}</td>
+      <td class="right">${pctStr}</td>
+      <td style="color:#64748b;font-size:0.78rem">${h.isin}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function stkDoRefresh() {
+  const btn = document.getElementById('stkRefreshBtn');
+  btn.disabled = true;
+  btn.classList.add('spinning');
+  showToast('Fetching holdings from Groww…', 'info', 0);
+  try {
+    const res  = await fetch('/api/stocks/refresh');
+    const data = await res.json();
+    if (data.ok) {
+      await stkLoad();
+      showToast(`Fetched ${data.holdings} holdings.`, 'success');
+    } else {
+      showToast(data.error || 'Refresh failed', 'error');
+    }
+  } catch (e) {
+    showToast('Network error', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('spinning');
+  }
+}
+
+// ════════════════════════════════════════════
+// GOLD TAB
+// ════════════════════════════════════════════
+let gldLoaded = false;
+let gldItems = [];
+let gldRates = {};
+let gldSummary = {};
+let gldKaratChart, gldValueChart;
+
+async function gldLoad() {
+  gldLoaded = true;
+  try {
+    const res = await fetch('/api/gold');
+    const data = await res.json();
+    gldItems = data.items || [];
+    gldRates = data.rates || {};
+    gldSummary = data.summary || {};
+    gldRender();
+  } catch (e) {
+    document.getElementById('gldLastUpdated').textContent = 'Error loading gold data.';
+  }
+}
+
+function gldRender() {
+  document.getElementById('gldCardCount').textContent = gldSummary.item_count ?? 0;
+  document.getElementById('gldCardWeight').textContent = NUM(gldSummary.total_grams || 0);
+  document.getElementById('gldCardValue').textContent = gldSummary.total_value ? INR(gldSummary.total_value) : '—';
+  document.getElementById('gldRate18').textContent = gldRates.rates?.['18K'] ? INR(gldRates.rates['18K']) : '—';
+  document.getElementById('gldRate22').textContent = gldRates.rates?.['22K'] ? INR(gldRates.rates['22K']) : '—';
+  document.getElementById('gldRate24').textContent = gldRates.rates?.['24K'] ? INR(gldRates.rates['24K']) : '—';
+
+  const meta = [];
+  if (gldRates.fetched_at) meta.push('Last updated: ' + gldRates.fetched_at);
+  if (gldRates.provider) meta.push('Source: ' + gldRates.provider);
+  document.getElementById('gldLastUpdated').textContent = meta.join(' · ') || 'No live rate cached yet. Click Refresh Rates.';
+
+  gldRenderCharts();
+  gldRenderTable();
+}
+
+function gldRenderCharts() {
+  const byKarat = { '18K': 0, '22K': 0, '24K': 0 };
+  gldItems.forEach(item => { byKarat[item.karat] = (byKarat[item.karat] || 0) + item.grams; });
+
+  if (gldKaratChart) gldKaratChart.destroy();
+  gldKaratChart = new Chart(document.getElementById('gldChartKarat'), {
+    type: 'doughnut',
+    data: {
+      labels: ['18K', '22K', '24K'],
+      datasets: [{
+        data: [byKarat['18K'], byKarat['22K'], byKarat['24K']],
+        backgroundColor: ['#3b82f6', '#f59e0b', '#22c55e'],
+        borderColor: '#0f172a',
+        borderWidth: 3,
+      }],
+    },
+    options: {
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#94a3b8', boxWidth: 12, font: { size: 11 } } },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${NUM(ctx.raw)} g` } },
+      },
+    },
+  });
+
+  const ranked = gldItems
+    .filter(item => item.current_value !== '' && item.current_value != null)
+    .slice()
+    .sort((a, b) => b.current_value - a.current_value)
+    .slice(0, 8);
+  if (gldValueChart) gldValueChart.destroy();
+  gldValueChart = new Chart(document.getElementById('gldChartValue'), {
+    type: 'bar',
+    data: {
+      labels: ranked.map(item => item.name),
+      datasets: [{
+        data: ranked.map(item => item.current_value),
+        backgroundColor: ranked.map(item => ({ '18K': '#3b82f6', '22K': '#f59e0b', '24K': '#22c55e' }[item.karat] || '#64748b')),
+        borderRadius: 4,
+      }],
+    },
+    options: {
+      indexAxis: 'y',
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#94a3b8', callback: v => '₹' + shortNum(v) }, grid: { color: '#334155' } },
+        y: { ticks: { color: '#94a3b8' }, grid: { display: false } },
+      },
+    },
+  });
+}
+
+function gldRenderTable() {
+  const q = (document.getElementById('gldSearch').value || '').toLowerCase();
+  const karat = document.getElementById('gldKaratFilter').value;
+  const rows = gldItems
+    .filter(item => (!q || item.name.toLowerCase().includes(q) || (item.notes || '').toLowerCase().includes(q)) && (!karat || item.karat === karat))
+    .sort((a, b) => b.grams - a.grams || a.name.localeCompare(b.name));
+  const tbody = document.getElementById('gldTableBody');
+  const noData = document.getElementById('gldNoData');
+
+  if (!rows.length) {
+    tbody.innerHTML = '';
+    noData.style.display = 'block';
+    return;
+  }
+
+  noData.style.display = 'none';
+  tbody.innerHTML = rows.map(item => `
+    <tr>
+      <td>${item.name}</td>
+      <td><span class="badge badge-gold-${item.karat.toLowerCase()}">${item.karat}</span></td>
+      <td class="right">${NUM(item.grams)} g</td>
+      <td class="right">${item.live_rate === '' ? '<span class="na">—</span>' : INR(item.live_rate)}</td>
+      <td class="right">${item.current_value === '' ? '<span class="na">—</span>' : INR(item.current_value)}</td>
+      <td style="color:#94a3b8">${item.notes || '—'}</td>
+      <td class="right"><button class="btn-danger" onclick="gldDeleteArticle('${item.item_id}')">Delete</button></td>
+    </tr>
+  `).join('');
+}
+
+async function gldAddArticle() {
+  const name = document.getElementById('gldName').value.trim();
+  const karat = document.getElementById('gldKarat').value;
+  const grams = parseFloat(document.getElementById('gldGrams').value);
+  const notes = document.getElementById('gldNotes').value.trim();
+  if (!name || !grams || grams <= 0) {
+    showToast('Article name and valid grams are required.', 'error');
+    return;
+  }
+  try {
+    const res = await fetch('/api/gold/add', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, karat, grams, notes }),
+    });
+    const data = await res.json();
+    if (!data.ok) {
+      showToast('Error: ' + data.error, 'error');
+      return;
+    }
+    document.getElementById('gldName').value = '';
+    document.getElementById('gldGrams').value = '';
+    document.getElementById('gldNotes').value = '';
+    await gldReload();
+    showToast('Gold article saved.', 'success');
+  } catch (e) {
+    showToast('Could not reach server.', 'error');
+  }
+}
+
+async function gldDeleteArticle(itemId) {
+  if (!confirm('Delete this gold article?')) return;
+  try {
+    const res = await fetch('/api/gold/' + encodeURIComponent(itemId), { method: 'DELETE' });
+    const data = await res.json();
+    if (!data.ok) {
+      showToast('Error: ' + data.error, 'error');
+      return;
+    }
+    await gldReload();
+    showToast('Gold article deleted.', 'success');
+  } catch (e) {
+    showToast('Could not reach server.', 'error');
+  }
+}
+
+async function gldRefreshRates() {
+  const btn = document.getElementById('gldRefreshBtn');
+  btn.disabled = true;
+  btn.classList.add('spinning');
+  showToast('Fetching live gold rates…', 'info', 0);
+  try {
+    const res = await fetch('/api/gold/refresh');
+    const data = await res.json();
+    if (!data.ok) {
+      showToast('Error: ' + data.error, 'error');
+      return;
+    }
+    await gldReload();
+    showToast('Gold rates updated.', 'success');
+  } catch (e) {
+    showToast('Could not reach server.', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('spinning');
+  }
+}
+
+async function gldReload() {
+  const res = await fetch('/api/gold');
+  const data = await res.json();
+  gldItems = data.items || [];
+  gldRates = data.rates || {};
+  gldSummary = data.summary || {};
+  gldRender();
+}
+</script>
+</body>
+</html>

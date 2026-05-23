@@ -1,0 +1,12 @@
+/__pycache__/
+*.py[cod]
+
+/data/
+/logs/
+
+/config/.env
+/config/.env.*
+!/config/.env.example
+
+/.DS_Store
+/.codex

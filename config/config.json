@@ -1,0 +1,4 @@
+{
+  "lookback_days": 1,
+  "csv_path": "data/expenses.csv"
+}
