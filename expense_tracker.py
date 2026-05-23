@@ -43,6 +43,7 @@ def load_seen_ids(csv_path):
 def append_expense(csv_path, record):
     """Append one record to the CSV; create with header if new."""
     p = Path(csv_path)
+    p.parent.mkdir(parents=True, exist_ok=True)
     write_header = not p.exists() or p.stat().st_size == 0
     with open(p, "a", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
@@ -61,6 +62,7 @@ def load_rows(csv_path):
 
 def write_rows(csv_path, rows):
     p = Path(csv_path)
+    p.parent.mkdir(parents=True, exist_ok=True)
     with open(p, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
         writer.writeheader()
