@@ -6,6 +6,11 @@ This file gives full context to Claude (or any AI assistant) about this project 
 
 ## Recent Updates
 
+### 2026-05-23 — Expense Filtering + HDFC Debit Card Purchase Support
+- **Credit card bill exclusion in dashboard**: expense-page totals, charts, averages, and the main expense table now exclude rows categorized as `Credit card bill`. The rows stay in `expenses.csv` for reference, but they no longer inflate spending totals because underlying card spends are already tracked separately.
+- **New HDFC debit card purchase parser**: added support for direct debit-card purchase alerts like `Rs.150.00 is debited from your HDFC Bank Debit Card ending 6167 at ENRICH FUELS on 07 May, 2026`.
+- **Repair mode**: `expense_tracker.py --repair --days N` can now re-read matching emails and update already-saved CSV rows by `Message-ID` when parser logic improves or email formats drift.
+
 ### 2026-04-11 — Duplicate Fix & IMAP Reconnect
 - **Deduplication fix**: `email_id` now stores the email's `Message-ID` header instead of the IMAP sequence number. IMAP sequence numbers are unstable (shift when inbox changes), causing the same email to be saved twice across multiple refreshes. `Message-ID` is globally unique and never changes.
 - **IMAP reconnect**: Extracted `_connect()` helper; `fetch_and_parse()` now retries up to 3 times on `imaplib.abort` / `OSError` (connection drop). Fixes crash when fetching large date ranges (e.g. `--days 100`) where Gmail drops the connection mid-session.
@@ -170,6 +175,7 @@ ending 0311 at AVENUEEMERCELIMITED on 29/03/26.
 - **Server-side IMAP filter** — searches by `FROM "<sender>"` on the server to avoid downloading the full inbox.
 - **HTML stripping** — emails have no `text/plain` part; body is extracted by stripping all HTML tags with regex.
 - **SBI card repayment skipped** — HDFC-UPI payments to "SBI CARDS" / "SBICARD" are filtered out in `parse_hdfc_upi` (returns `None`) to avoid double-counting.
+- **Expense dashboard excludes credit card bill repayments** — rows categorized as `Credit card bill` remain stored, but they are not counted in expense-page analytics or the main expense table.
 - **Single server** — `server.py` on port 8080 serves both expense and stocks APIs. `stocks_server.py` (port 8081) is legacy.
 
 ---
@@ -226,12 +232,15 @@ symbol, isin, quantity, average_price, invested_value, t1_quantity, demat_free_q
 | `load_config()` | Reads config.json |
 | `load_seen_ids(csv_path)` | Returns set of already-saved email_ids |
 | `append_expense(csv_path, record)` | Appends one row to CSV, creates header if new |
+| `load_rows(csv_path)` | Reads all existing expense rows from CSV |
+| `write_rows(csv_path, rows)` | Rewrites the CSV with updated rows |
 | `get_body(msg)` | Extracts plain text; strips HTML tags as fallback |
 | `parse_hdfc_cc(body, email_id)` | Parses HDFC direct swipe CC emails |
 | `parse_hdfc_upi(body, email_id)` | Parses HDFC UPI (savings + CC-via-UPI) emails |
+| `parse_hdfc_debit_card_purchase(body, email_id)` | Parses direct HDFC debit-card purchase emails |
 | `_parse_hdfc_auto(body, email_id)` | Tries CC parser first, falls back to UPI parser |
 | `parse_sbi(body, email_id)` | Parses SBI Credit Card emails |
-| `fetch_and_parse(config, days)` | Main IMAP loop — fetches, parses, saves |
+| `fetch_and_parse(config, days, repair_existing=False)` | Main IMAP loop — fetches, parses, saves, and can repair existing rows |
 | `print_report(config, month)` | Prints terminal report from CSV |
 
 ## stocks_fetcher.py — Function Map
@@ -267,6 +276,7 @@ symbol, isin, quantity, average_price, invested_value, t1_quantity, demat_free_q
 - Month selector filters all charts + table simultaneously
 - Charts: Daily spending (stacked bar), Source breakdown (donut), Top 10 merchants (horizontal bar), Monthly trend (line), Spending by Category (pie)
 - Table: Searchable by merchant, filterable by source and category, paginated 20/page
+- Rows categorized as `Credit card bill` are excluded from expense totals, charts, averages, and the main expense table to avoid double-counting tracked card spending
 - Source colors: HDFC-CC = `#3b82f6`, HDFC-UPI = `#10b981`, HDFC-ATM = `#a855f7`, HDFC-DC = `#ec4899`, SBI-CC = `#f59e0b`
 
 ### Portfolio Tab

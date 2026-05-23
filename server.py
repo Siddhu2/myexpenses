@@ -32,6 +32,10 @@ STOCKS_FETCHER  = Path(__file__).parent / "stocks_fetcher.py"
 PYTHON39        = "python3.9"
 PORT            = 8080
 
+def ensure_runtime_dirs():
+    CSV_PATH.parent.mkdir(parents=True, exist_ok=True)
+    STOCKS_CSV_PATH.parent.mkdir(parents=True, exist_ok=True)
+
 def load_categories():
     if not CATEGORIES_PATH.exists():
         return {}
@@ -313,6 +317,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 'raw_snippet': f"Manual income: {category} — {note}",
             }
             fieldnames = ['date', 'amount', 'type', 'source', 'merchant', 'account', 'email_id', 'raw_snippet']
+            CSV_PATH.parent.mkdir(parents=True, exist_ok=True)
             write_header = not CSV_PATH.exists() or CSV_PATH.stat().st_size == 0
             with open(CSV_PATH, 'a', newline='', encoding='utf-8') as f:
                 writer = csv.DictWriter(f, fieldnames=fieldnames)
@@ -350,6 +355,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         pass  # suppress request logs
 
 if __name__ == "__main__":
+    ensure_runtime_dirs()
     server = http.server.HTTPServer(("localhost", PORT), Handler)
     url = f"http://localhost:{PORT}"
     print(f"[✓] Finance dashboard running → {url}")
