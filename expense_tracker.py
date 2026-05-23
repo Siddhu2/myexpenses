@@ -69,6 +69,16 @@ def write_rows(csv_path, rows):
         for row in rows:
             writer.writerow({k: row.get(k, "") for k in FIELDNAMES})
 
+
+def ensure_expense_csv(csv_path):
+    p = Path(csv_path)
+    if p.exists():
+        return
+    p.parent.mkdir(parents=True, exist_ok=True)
+    with open(p, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
+        writer.writeheader()
+
 # ─── Email Helpers ────────────────────────────────────────────────────────────
 
 def decode_subject(msg):
@@ -457,9 +467,7 @@ def fetch_and_parse(config, lookback_days=None, repair_existing=False):
 
 def print_report(config, month=None):
     csv_path = Path(config["csv_path"])
-    if not csv_path.exists():
-        print("No expenses file found yet.")
-        return
+    ensure_expense_csv(csv_path)
 
     with open(csv_path, newline="") as f:
         rows = list(csv.DictReader(f))
